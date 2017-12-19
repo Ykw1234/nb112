@@ -1,0 +1,41 @@
+#include <U8glib.h>//使用OLED需要包含这个头文件
+#define INTERVAL_LCD 20 //定义OLED刷新时间间隔 
+#include "I2Cdev.h" 
+#include <SHT2x.h>
+#include <Microduino_Tem_Hum.h>
+Tem_Hum_S2  termo; //调用Sensor-Tem&Hum-S2传感器
+unsigned long lcd_time = millis(); //OLED刷新时间计时器
+U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NONE); //设置OLED型号 
+//-------字体设置，大、中、小
+#define setFont_L u8g.setFont(u8g_font_7x13)
+#define setFont_M u8g.setFont(u8g_font_fixed_v0r)
+#define setFont_S u8g.setFont(u8g_font_fixed_v0r)
+#define setFont_SS u8g.setFont(u8g_font_fub25n)
+void setup() {
+ Serial.begin(9600);
+ Serial.println("Initialisation complete.");
+ Serial.print(termo.begin());  //初始化温湿度传感器，并串口打印传感器是否在线
+}
+void loop() {
+  Serial.print("Tem_Hum_S2 Tem:");
+  Serial.print(termo.getTemperature()); //串口打印获取的温度
+  Serial.print("\t");
+  Serial.print("Tem_Hum_S2 Hum:");
+  Serial.println(termo.getHumidity()); //串口打印获取的湿度
+  Serial.println("------------------");
+  delay(1000);
+  Serial.print("onLine:");
+  Serial.println(termo.begin());  //串口打印传感器是否在线
+ u8g.firstPage();
+ do {
+ setFont_L;
+ u8g.setPrintPos(0, 30);
+ u8g.print("Temperature:");
+ u8g.setPrintPos(85, 30);
+ u8g.print(termo.getTemperature());
+ u8g.setPrintPos(0, 50);
+ u8g.print("Humidity:");
+ u8g.setPrintPos(63,50);
+ u8g.print(termo.getHumidity());
+ }while( u8g.nextPage() );
+}
