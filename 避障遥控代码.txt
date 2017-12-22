@@ -1,0 +1,197 @@
+#include <Servo.h>
+#include <IRremote.h>//包含红外库
+int RECV_PIN = 13;//端口声明
+IRrecv irrecv(RECV_PIN);
+decode_results results;//结构声明
+int on = 0;//标志位
+unsigned long last = millis();
+long run_car = 0x00ff629D;//按键2
+long back_car = 0x00FFA857;//按键8
+long left_car = 0x00FF22DD;//按键4
+long right_car = 0x00FFC23D;//按键6
+long stop_car = 0x00FF02FD;//按键5
+long left_turn = 0x00FFA25D;//按键1
+long right_turn = 0x00FF6897;//按键3
+long mode2 = 0x00FFE21D;//按键*
+int motorL1=6; //左边轮子
+int motorL2=5;
+int motorR1=9; //右边轮子
+int motorR2=11;
+int motorBrush=3;//控制毛刷
+int motorBrush1=10;
+//int ledB=8; //倒车灯
+//int ledG=13; //大灯
+int didi=1;//倒车喇叭
+Servo s; //超声波转向舵机
+int trig=4; //发射信号
+int echo=2; //接收信号
+unsigned int S; //距离存储
+void dump(decode_results *results);
+void autu();
+void line();
+void L();
+void R();
+void back();
+void lull();
+void setup() {
+pinMode(13, INPUT);////端口模式，输出
+Serial.begin(9600); //设置波特率
+pinMode(trig,OUTPUT); //设置引脚模式
+pinMode(echo,INPUT);
+pinMode(motorL1,OUTPUT);
+pinMode(motorL2,OUTPUT);
+pinMode(motorR1,OUTPUT);
+pinMode(motorR2,OUTPUT);
+pinMode(motorBrush,OUTPUT);
+pinMode(motorBrush1,OUTPUT);
+pinMode(didi,OUTPUT);
+//pinMode(ledG,OUTPUT);
+pinMode(12,OUTPUT);
+s.attach(8); //定义舵机所用引脚
+s.write(90); //初始化舵机角度
+tone(12,800,500);
+delay(2000);//开机延时
+irrecv.enableIRIn();
+}
+void loop() {
+  if(irrecv.decode(&results)){  //如果接收到信息
+   switch(results.value){
+     case 0xFD8877:  //前,对应2
+       run();
+       break;
+     case 0xFD9867:  //后，对应8
+       back();
+       break;
+     case 0xFD28D7:  //左，对应4
+       left();
+       break;
+     case 0xFD6897:  //右，对应6
+       right();
+       break;
+     case 0xFDA857:  //停止，对应5
+       brake();
+       break;
+     default:
+       break;
+   }
+  irrecv.resume();
+  }
+  else autu();
+}
+void autu(){
+  s.write(90); //舵机中位
+range(); //执行测距函数
+if(S<10){ //判断障碍物距离，距离太近
+back(); //后退
+delay(1000); //后退时间
+}
+if(S<=30&&S>=10){ //距离中等
+turn(); //运行转向判断函数
+}
+if(S>30){ //距离充足
+line(); //运行直行函数
+}
+}
+
+void turn(){ //判断转向函数
+lull(); //停止所用电机
+s.write(170); //舵机转到180度既左边（角度与安装方式有关）
+delay(500); //留时间给舵机转向
+range(); //运行测距函数
+s.write(90); //测距完成，舵机回到中位
+delay(600); //留时间给舵机转向
+if (S>30)
+L(); //判断左边障碍物距离，如果距离充足,运行左转 
+else {
+s.write(10); //否则，舵机转动到10度，测右边距离
+delay(600);
+range(); //测距
+s.write(90); //中位
+delay(600);
+if(S>30)
+{ R();} //右转
+else
+{ back();//判断右边距离，距离充足右转否则后退
+delay(1000);
+int x=random();//产生一个0到1的随机数 
+if (x==0)
+R(); 
+else
+L(); //判断随机数
+} //否则后退，并随机转向
+}
+}
+void range(){ //测距函数
+digitalWrite(trig,LOW); //测距
+delayMicroseconds(2); //延时2微秒
+digitalWrite(trig,HIGH);
+delayMicroseconds(20);
+digitalWrite(trig,LOW);
+int distance = pulseIn(echo,HIGH); //读取高电平时间
+distance = distance/58; //按照公式计算
+S = distance; //把值赋给S
+Serial.println(S); //向串口发送S的值，可以在显示器上显示距离
+if (S<30){
+tone(12,800,50);
+delay(50); //延时
+}
+}
+
+
+void line(){
+//ledoff(); //关闭所有LED
+ledg(); //运行大灯函数
+digitalWrite(motorR1,HIGH); //启动所有电机向前
+digitalWrite(motorL1,HIGH);
+digitalWrite(motorBrush,HIGH);//前进的时候毛刷开启
+digitalWrite(motorR2,LOW);
+digitalWrite(motorL2,LOW);
+digitalWrite(motorBrush1,LOW);
+}
+
+void L(){
+digitalWrite(motorL2,HIGH);
+digitalWrite(motorR2,LOW);
+digitalWrite(motorL1,LOW);
+digitalWrite(motorR1,HIGH);
+//lull(); //暂停所有电机
+delay(1000);
+}
+void R(){
+digitalWrite(motorL1,HIGH);
+digitalWrite(motorR1,LOW);
+digitalWrite(motorR2,HIGH);
+digitalWrite(motorL2,LOW);
+//lull();
+delay(1000);
+}
+
+
+void back(){ //后退函数
+digitalWrite(motorL1,LOW);
+digitalWrite(motorR1,LOW);
+digitalWrite(motorL2,HIGH);
+digitalWrite(motorR2,HIGH);
+}
+
+void lull(){
+digitalWrite(motorL1,LOW);
+digitalWrite(motorL2,LOW);
+digitalWrite(motorR1,LOW);
+digitalWrite(motorR2,LOW);
+digitalWrite(motorBrush,LOW);
+digitalWrite(motorBrush1,LOW);
+}
+void dump(decode_results *results)
+{
+int count = results->rawlen;
+if (results->decode_type == UNKNOWN) 
+{
+//Serial.println("Could not decode message");
+lull();
+} 
+}
+
+void ledg(){
+//digitalWrite(ledG,HIGH);
+}
